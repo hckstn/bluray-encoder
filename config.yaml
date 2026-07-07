@@ -1,0 +1,69 @@
+tmdb:
+
+  api_key: "a262d3098e5b500a6eb9d890741af5e5"
+
+  language: "de-DE"
+
+paths:
+
+  remux: "./remux"
+
+  encoded: "./encoded"
+
+  logs: "./logs"
+
+video:
+
+  encoder: "libx265"
+
+  preset: "slow"
+
+  crf: 18
+
+  pix_fmt: "yuv420p10le"
+
+  x265_params:
+
+    aq-mode: 3
+
+    aq-strength: 1.0
+
+    psy-rd: 2.0
+
+    psy-rdoq: 1.0
+
+    deblock: "-1,-1"
+
+audio:
+
+  keep_languages:
+
+    - deu
+
+    - eng
+
+subtitle:
+
+  keep_languages:
+
+    - deu
+
+    - eng
+
+defaults:
+
+  english_original: eng
+
+  german_original: deu
+
+  foreign_original: deu
+
+output:
+
+  overwrite: ask
+
+  keep_remux: true
+
+logging:
+
+  level: INFO
