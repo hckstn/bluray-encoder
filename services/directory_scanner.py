@@ -1,7 +1,5 @@
 """
-BluRay Encoder
-
-Scans the Remux directory.
+Directory scanner.
 """
 
 from __future__ import annotations
@@ -15,26 +13,29 @@ class DirectoryScanner:
 
     def scan(
         self,
-        remux_directory: Path,
+        root: Path,
     ) -> list[MovieFolder]:
 
-        movies: list[MovieFolder] = []
+        if not root.exists():
+            return []
 
-        if not remux_directory.exists():
-            return movies
+        folders: list[MovieFolder] = []
 
-        for directory in sorted(remux_directory.iterdir()):
+        for directory in sorted(root.iterdir()):
 
             if not directory.is_dir():
                 continue
 
             mkvs = sorted(directory.glob("*.mkv"))
 
-            movies.append(
+            if not mkvs:
+                continue
+
+            folders.append(
                 MovieFolder(
                     path=directory,
                     mkv_files=mkvs,
                 )
             )
 
-        return movies
+        return folders
