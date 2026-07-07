@@ -11,6 +11,8 @@ from rich.console import Console
 from core.cli import CLI
 from core.config import ConfigManager
 from services.directory_scanner import DirectoryScanner
+from core.exceptions import MissingToolError
+from core.tool_detector import ToolDetector
 
 
 class Application:
@@ -29,6 +31,31 @@ class Application:
         self.console.print(
             f"[bold cyan]BluRay Encoder[/] {self.VERSION}"
         )
+        self.console.print()
+        self.console.print("Checking required tools...")
+
+        try:
+
+            detector = ToolDetector()
+
+            tools = detector.detect()
+
+            for tool in tools:
+                self.console.print(
+                    f"[green]✓[/] {tool}"
+                )
+
+        except MissingToolError as exc:
+
+            self.console.print()
+
+            self.console.print(
+                f"[red]{exc}[/]"
+            )
+
+            return 1
+
+        self.console.print()
 
         match args.command:
 
