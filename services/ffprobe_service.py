@@ -21,6 +21,21 @@ class FFprobeService:
 
     def analyze(self, file: Path) -> MainFeature:
 
+        data = self._run_ffprobe(file)
+
+        return MainFeature(
+            path=file,
+            duration=float(data["format"]["duration"]),
+            file_size=int(data["format"]["size"]),
+            chapters=len(data.get("chapters", [])),
+            video=self._video(data),
+            audio=self._audio(data),
+            subtitles=self._subtitles(data),
+        )
+
+    @staticmethod
+    def _run_ffprobe(file: Path) -> dict:
+
         result = subprocess.run(
             [
                 "ffprobe",
@@ -38,17 +53,7 @@ class FFprobeService:
             check=True,
         )
 
-        data = json.loads(result.stdout)
-
-        return MainFeature(
-            path=file,
-            duration=float(data["format"]["duration"]),
-            file_size=int(data["format"]["size"]),
-            chapters=len(data.get("chapters", [])),
-            video=self._video(data),
-            audio=self._audio(data),
-            subtitles=self._subtitles(data),
-        )
+        return json.loads(result.stdout)
 
     def _video(self, data: dict) -> VideoStream:
 
@@ -59,7 +64,7 @@ class FFprobeService:
         )
 
         return VideoStream(
-            codec=stream.get("codec_name", ""),
+            codec=self._video_codec(stream),
             width=stream.get("width", 0),
             height=stream.get("height", 0),
             profile=stream.get("profile"),
@@ -166,12 +171,68 @@ class FFprobeService:
     @staticmethod
     def _hdr(stream: dict) -> str | None:
 
-        color_transfer = stream.get("color_transfer")
+        side_data = stream.get("side_data_list", [])
 
-        if color_transfer == "smpte2084":
+        for entry in side_data:
+
+            if entry.get("side_data_type") == "DOVI configuration record":
+                return "Dolby Vision"
+
+        transfer = stream.get("color_transfer")
+
+        if transfer == "smpte2084":
             return "HDR10"
 
-        if color_transfer == "arib-std-b67":
+        if transfer == "arib-std-b67":
             return "HLG"
 
         return None
+
+     @staticmethod
+    def _audio_codec(stream: dict) -> str:
+
+        codec = stream.get("codec_name", "").lower()
+        profile = stream.get("profile", "").upper()
+
+        if codec == "dts":
+
+            if "DTS-HD MA" in profile:
+                return "DTS-HD MA"
+
+            if "DTS-HD HRA" in profile:
+                return "DTS-HD HRA"
+
+            if "DTS EXPRESS" in profile:
+                return "DTS Express"
+
+            if "DTS:X" in profile:
+                return "DTS:X"
+
+            return "DTS"
+
+        mapping = {
+            "truehd": "TrueHD",
+            "eac3": "E-AC-3",
+            "ac3": "AC-3",
+            "aac": "AAC",
+            "flac": "FLAC",
+            "pcm_bluray": "PCM",
+        }
+
+        return mapping.get(codec, codec.upper())
+
+
+    @staticmethod
+    def _video_codec(stream: dict) -> str:
+
+        codec = stream.get("codec_name", "").lower()
+
+        mapping = {
+            "h264": "AVC",
+            "hevc": "HEVC",
+            "mpeg2video": "MPEG-2",
+            "vc1": "VC-1",
+            "av1": "AV1",
+        }
+
+        return mapping.get(codec, codec.upper())
