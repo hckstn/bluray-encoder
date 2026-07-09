@@ -18,11 +18,19 @@ class ConfigManager:
 
             self.config = yaml.safe_load(f)
 
-    def get(self, *keys):
+    def get(
+        self,
+        *keys,
+        default=None,
+    ):
 
         data = self.config
 
         for key in keys:
+
+            if key not in data:
+                return default
+
             data = data[key]
 
         return data
