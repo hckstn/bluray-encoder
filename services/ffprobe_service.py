@@ -1,5 +1,8 @@
 """
-FFprobe wrapper.
+FFprobe service.
+
+Reads media information from FFprobe and converts it into the project's
+normalized data model.
 """
 
 from __future__ import annotations
@@ -7,7 +10,13 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
+from core.media_codec import (
+    detect_hdr,
+    normalize_audio_codec,
+    normalize_video_codec,
+)
 from models.media import (
     AudioStream,
     MainFeature,
@@ -17,9 +26,14 @@ from models.media import (
 
 
 class FFprobeService:
-    """Analyzes a media file using ffprobe."""
+    """Analyze MKV files using FFprobe."""
+
+    VIDEO = "video"
+    AUDIO = "audio"
+    SUBTITLE = "subtitle"
 
     def analyze(self, file: Path) -> MainFeature:
+        """Analyze one MKV file."""
 
         data = self._run_ffprobe(file)
 
@@ -28,13 +42,13 @@ class FFprobeService:
             duration=float(data["format"]["duration"]),
             file_size=int(data["format"]["size"]),
             chapters=len(data.get("chapters", [])),
-            video=self._video(data),
-            audio=self._audio(data),
-            subtitles=self._subtitles(data),
+            video=self._parse_video(data),
+            audio=self._parse_audio(data),
+            subtitles=self._parse_subtitles(data),
         )
 
     @staticmethod
-    def _run_ffprobe(file: Path) -> dict:
+    def _run_ffprobe(file: Path) -> dict[str, Any]:
 
         result = subprocess.run(
             [
@@ -55,50 +69,61 @@ class FFprobeService:
 
         return json.loads(result.stdout)
 
-    def _video(self, data: dict) -> VideoStream:
+    def _parse_video(
+        self,
+        data: dict[str, Any],
+    ) -> VideoStream:
 
         stream = next(
             s
             for s in data["streams"]
-            if s["codec_type"] == "video"
+            if s["codec_type"] == self.VIDEO
         )
 
         return VideoStream(
-            codec=self._video_codec(stream),
+            codec=normalize_video_codec(
+                stream.get("codec_name", "")
+            ),
             width=stream.get("width", 0),
             height=stream.get("height", 0),
             profile=stream.get("profile"),
+            hdr=detect_hdr(stream),
             bit_depth=self._bit_depth(stream),
             frame_rate=self._frame_rate(stream),
-            hdr=self._hdr(stream),
         )
 
-    def _audio(self, data: dict) -> list[AudioStream]:
+    def _parse_audio(
+        self,
+        data: dict[str, Any],
+    ) -> list[AudioStream]:
 
-        streams: list[AudioStream] = []
+        audio: list[AudioStream] = []
 
         for stream in data["streams"]:
 
-            if stream["codec_type"] != "audio":
+            if stream["codec_type"] != self.AUDIO:
                 continue
 
             tags = stream.get("tags", {})
             disposition = stream.get("disposition", {})
 
-            streams.append(
+            audio.append(
                 AudioStream(
                     index=stream["index"],
                     language=tags.get(
                         "language",
                         "und",
                     ),
-                    codec=stream.get(
-                        "codec_name",
-                        "",
+                    codec=normalize_audio_codec(
+                        stream.get("codec_name", ""),
+                        stream.get("profile"),
                     ),
                     channels=stream.get(
                         "channels",
                         0,
+                    ),
+                    layout=stream.get(
+                        "channel_layout"
                     ),
                     title=tags.get("title"),
                     default=bool(
@@ -110,24 +135,24 @@ class FFprobeService:
                 )
             )
 
-        return streams
+        return audio
 
-    def _subtitles(
+    def _parse_subtitles(
         self,
-        data: dict,
+        data: dict[str, Any],
     ) -> list[SubtitleStream]:
 
-        streams: list[SubtitleStream] = []
+        subtitles: list[SubtitleStream] = []
 
         for stream in data["streams"]:
 
-            if stream["codec_type"] != "subtitle":
+            if stream["codec_type"] != self.SUBTITLE:
                 continue
 
             tags = stream.get("tags", {})
             disposition = stream.get("disposition", {})
 
-            streams.append(
+            subtitles.append(
                 SubtitleStream(
                     index=stream["index"],
                     language=tags.get(
@@ -144,10 +169,12 @@ class FFprobeService:
                 )
             )
 
-        return streams
+        return subtitles
 
     @staticmethod
-    def _frame_rate(stream: dict) -> float | None:
+    def _frame_rate(
+        stream: dict[str, Any],
+    ) -> float | None:
 
         value = stream.get("avg_frame_rate")
 
@@ -159,7 +186,9 @@ class FFprobeService:
         return float(numerator) / float(denominator)
 
     @staticmethod
-    def _bit_depth(stream: dict) -> int | None:
+    def _bit_depth(
+        stream: dict[str, Any],
+    ) -> int | None:
 
         value = stream.get("bits_per_raw_sample")
 
@@ -167,72 +196,3 @@ class FFprobeService:
             return None
 
         return int(value)
-
-    @staticmethod
-    def _hdr(stream: dict) -> str | None:
-
-        side_data = stream.get("side_data_list", [])
-
-        for entry in side_data:
-
-            if entry.get("side_data_type") == "DOVI configuration record":
-                return "Dolby Vision"
-
-        transfer = stream.get("color_transfer")
-
-        if transfer == "smpte2084":
-            return "HDR10"
-
-        if transfer == "arib-std-b67":
-            return "HLG"
-
-        return None
-
-     @staticmethod
-    def _audio_codec(stream: dict) -> str:
-
-        codec = stream.get("codec_name", "").lower()
-        profile = stream.get("profile", "").upper()
-
-        if codec == "dts":
-
-            if "DTS-HD MA" in profile:
-                return "DTS-HD MA"
-
-            if "DTS-HD HRA" in profile:
-                return "DTS-HD HRA"
-
-            if "DTS EXPRESS" in profile:
-                return "DTS Express"
-
-            if "DTS:X" in profile:
-                return "DTS:X"
-
-            return "DTS"
-
-        mapping = {
-            "truehd": "TrueHD",
-            "eac3": "E-AC-3",
-            "ac3": "AC-3",
-            "aac": "AAC",
-            "flac": "FLAC",
-            "pcm_bluray": "PCM",
-        }
-
-        return mapping.get(codec, codec.upper())
-
-
-    @staticmethod
-    def _video_codec(stream: dict) -> str:
-
-        codec = stream.get("codec_name", "").lower()
-
-        mapping = {
-            "h264": "AVC",
-            "hevc": "HEVC",
-            "mpeg2video": "MPEG-2",
-            "vc1": "VC-1",
-            "av1": "AV1",
-        }
-
-        return mapping.get(codec, codec.upper())

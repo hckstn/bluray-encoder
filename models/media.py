@@ -1,5 +1,8 @@
 """
-Media models used throughout the analysis pipeline.
+Media models.
+
+These dataclasses represent the normalized media information used
+throughout the application.
 """
 
 from __future__ import annotations
@@ -10,15 +13,14 @@ from pathlib import Path
 
 @dataclass(slots=True)
 class VideoStream:
-    """Video stream information."""
+    """Video stream."""
 
     codec: str
     width: int
     height: int
 
-    hdr: str | None = None
-
     profile: str | None = None
+    hdr: str | None = None
 
     bit_depth: int | None = None
 
@@ -27,7 +29,7 @@ class VideoStream:
 
 @dataclass(slots=True)
 class AudioStream:
-    """Audio stream information."""
+    """Audio stream."""
 
     index: int
 
@@ -36,6 +38,8 @@ class AudioStream:
     codec: str
 
     channels: int
+
+    layout: str | None = None
 
     title: str | None = None
 
@@ -46,7 +50,7 @@ class AudioStream:
 
 @dataclass(slots=True)
 class SubtitleStream:
-    """Subtitle stream information."""
+    """Subtitle stream."""
 
     index: int
 
@@ -61,7 +65,9 @@ class SubtitleStream:
 
 @dataclass(slots=True)
 class MainFeature:
-    """Represents one analyzed MKV."""
+    """
+    Represents the analyzed main feature of a movie.
+    """
 
     path: Path
 
