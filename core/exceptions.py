@@ -1,17 +1,13 @@
 """
-Custom project exceptions.
+Project specific exceptions.
 """
 
 from __future__ import annotations
 
 
-class BlurayEncoderError(Exception):
-    """Base class for all project exceptions."""
+class BluRayEncoderError(Exception):
+    """Base exception for the application."""
 
 
-class MissingToolError(BlurayEncoderError):
-    """Raised when a required external tool cannot be found."""
-
-
-class ConfigurationError(BlurayEncoderError):
-    """Raised when configuration is invalid."""
+class AnalyzerError(BluRayEncoderError):
+    """Raised when a movie folder cannot be analyzed."""
