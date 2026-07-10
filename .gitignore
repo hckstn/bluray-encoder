@@ -32,4 +32,11 @@ logs/
 config.local.yaml
 
 # Temporary
-*.tmp
+
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc

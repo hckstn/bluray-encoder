@@ -1,21 +1,24 @@
 """
-BluRay Encoder
-
-Result returned by the MovieSourceResolver.
+Movie search match.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+from models.movie_metadata import MovieMetadata
+
 
 @dataclass(slots=True, frozen=True)
 class MovieMatch:
+    """
+    Represents one scored TMDb search result.
+    """
 
-    source_name: str
+    metadata: MovieMetadata
 
-    normalized_title: str
+    score: float
 
-    year: int | None
+    title_score: float
 
-    confidence: float
+    year_score: float

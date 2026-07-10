@@ -1,6 +1,6 @@
 tmdb:
 
-  api_key: "a262d3098e5b500a6eb9d890741af5e5"
+  bearer_token: "a262d3098e5b500a6eb9d890741af5e5"
 
   language: "de-DE"
 

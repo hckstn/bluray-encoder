@@ -11,13 +11,13 @@ from core.exceptions import MissingToolError
 
 class ToolDetector:
 
-REQUIRED_TOOLS = (
-    "ffmpeg",
-    "ffprobe",
-    "mkvmerge",
-    "mkvpropedit",
-    "mkvextract",
-)
+    REQUIRED_TOOLS = (
+        "ffmpeg",
+        "ffprobe",
+        "mkvmerge",
+        "mkvpropedit",
+        "mkvextract",
+    )
 
     def detect(self) -> dict[str, str]:
 
